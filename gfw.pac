@@ -8,9 +8,22 @@ var inChinaIP = localProxy;
 var nonChinaIp = direct;
 
 var chinaDomains = [
+    "cn",
     "jd.com",
     "taobao.com",
-    "tmall.com"
+    "tmall.com",
+    "bilibili.com",
+    "youku.com",
+    "iqiyi.com",
+    "qq.com",
+    "163.com",
+    "sina.com",
+    "pcpop.com",
+    "pcbeta.com",
+    "cnbeta.com",
+    "yesky.com",
+    "douban.com",
+    "baidu.com"
 ]
 
 var gfwDomains = [
