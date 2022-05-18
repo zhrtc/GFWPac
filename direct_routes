@@ -16,7 +16,7 @@ hk_gateway=172.30.3.1
 my_domains="hk.geoe.cn hk2.geoe.cn hkt.geoe.cn hkt2.geoe.cn gzt2.geoe.cn"
 non_china_ips=/jffs/userscripts/non_china_ips
 
-$tag="DirectRoutes"
+tag="DirectRoutes"
 
 echo `date`
 
@@ -45,7 +45,7 @@ addHostRoute(){
     do
         for j in 1 2 3 4 5 6 7 8 9
         do
-            IPs=`curl ${dns_server}${domain} | grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}" -o`
+            IPs=`curl -s ${dns_server}${domain} | grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}" -o`
             if [ -n "$IPs" ]; then
                 logger -t $tag -s "Get $domain ip: $IPs"
                 break
@@ -68,7 +68,7 @@ addHostRoute(){
             fi
         done
 
-        if [ -z "$errmsg"]; then
+        if [ -z "$errmsg" ]; then
             break
         fi
         
@@ -81,6 +81,22 @@ for my_domain in ${my_domains}
 do
     addHostRoute $my_domain
 done
+
+#check HK gateway connectivity
+for i in 1 2 3 4 5 6 7 8 8 8 16 16 16 32 32 32 64 64 64
+do
+    res=`ping -c 1 -W 3 ${hk_gateway} | grep "bytes from ${hk_gateway}: seq=0 ttl="`
+    if [ -n "${res}" ]; then
+        logger -t $tag -s "${hk_gateway} connected."
+        break
+    fi
+    logger -t $tag -s "${hk_gateway} unreachable. Try again in $i seconds"
+    sleep $i
+done
+if [ -z "${res}" ]; then
+    logger -t $tag -s "${hk_gateway} unreachable. Exit!"
+    exit 1
+fi
 
 echo `date`
 logger -t $tag -s "Add Batch Route to Hong Kong Server for IPs Outside China Regions"
@@ -97,6 +113,9 @@ ip -batch /tmp/non_china_ips_routes
 rm /tmp/non_china_ips_routes
 
 logger -t $tag -s "FINFISHED: Add all non_china_ips route to the Gateway $hk_gateway"
+
+logger -t $tag -s "Add 10.0.0.0 route to $hk_gateway"
+ip route add 10.0.0.0/8 via $hk_gateway
 
 echo `date`
 

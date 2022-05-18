@@ -4,18 +4,18 @@
 bridge=$1 # br0
 prefix=$2 # tap_
 
-$tag="TapToBridge"
+tag="TapToBridge"
 sleep 1
 
 for i in 1 2 4 4 6 8 8 8
 do
     modprobe tun
     sleep $i
-    taps=`ifconfig | grep -E "$prefix[[:alnum:]]+ +Link " -o | grep -E "$prefix[[:alnum:]]+" -o`
+    taps=`ifconfig | grep -E "$prefix[[:alnum:]_]+ +Link " -o | grep -E "$prefix[[:alnum:]_]+" -o`
     if [ -n "$taps" ]
     then
         sleep 1
-        taps=`ifconfig | grep -E "$prefix[[:alnum:]]+ +Link " -o | grep -E "$prefix[[:alnum:]]+" -o`
+        taps=`ifconfig | grep -E "$prefix[[:alnum:]_]+ +Link " -o | grep -E "$prefix[[:alnum:]_]+" -o`
         logger -t $tag -s "Interface [$taps] Found."
         break
     fi
