@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Exit if /tmp/addroute.lockfile exists
+[ -f /tmp/second_wan.lockfile ] && exit
+
+# Create lock file, sleep 1 sec and verify lock
+echo $$ > /tmp/second_wan.lockfile
+sleep 1
+[ "x$(cat /tmp/second_wan.lockfile)" == "x"$$ ] || exit
+
+dev=ppp1
+remoteIp=210.6.62.178
+remotePort=5555
+remotePort=65443
+remotePortNew=443
+tableId=8443
+
+localIp=`ifconfig | grep -A1 ${dev} | grep -o -E "inet addr:([0-9]{1,3}[\.]){3}[0-9]{1,3}" | grep -o -E "([0-9]{1,3}[\.]){3}[0-9]{1,3}"`
+gateway=`ifconfig | grep -A1 ${dev} | grep -o -E "P-t-P:([0-9]{1,3}[\.]){3}[0-9]{1,3}" | grep -o -E "([0-9]{1,3}[\.]){3}[0-9]{1,3}"`
+
+ip route add default via ${gateway} dev ${dev} table ${tableId}
+ip rule add fwmark ${tableId} lookup ${tableId}
+iptables -t mangle -A OUTPUT -p tcp -d ${remoteIp} --dport ${remotePort} -j MARK --set-mark ${tableId}
+iptables -t nat -A OUTPUT -p tcp -d ${remoteIp} --dport ${remotePort} -j REDIRECT --to-ports ${remotePortNew}
+iptables -t nat -A POSTROUTING ! -s ${localIp}/32 -o ${dev} -j MASQUERADE
+
+echo `date`
+
+rm /tmp/second_wan.lockfile

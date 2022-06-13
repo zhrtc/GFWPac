@@ -1,0 +1,77 @@
+#!/bin/sh
+
+loggerTag="VPN_LINK_SELECT"
+
+hub1=HK1901
+link1=hk1901
+hub2=hkt
+link2=hkt
+password=KA3jRSrKeFE
+server=172.30.2.1
+port=5555
+pingTimes=10
+domain1=hk2.geoe.cn
+domain2=hkt.geoe.cn
+
+AveragePing() {
+    host=${1}
+    times=${2}
+    averagePing=`ping -c ${times} -W 1 ${host} | grep "round-trip" | sed "s#.\+[0-9\.]\+/\([0-9\.]\+\)/[0-9\.]\+.\+#\1#g"`
+    eval "${3}=${averagePing}"
+}
+
+GetOnline() {
+    hub=${1}
+    hub_password=${2}
+    link=${3}
+    resp=`curl --insecure -s -H "X-VPNADMIN-HUBNAME:${hub}" -H "X-VPNADMIN-PASSWORD:${hub_password}" "https://${server}:${port}/api/GetLink?HubName_Ex_str=${hub}&AccountName_utf=${link}"`
+    result=`echo ${resp} | grep -o -E "\"Online_bool\": [truefalse]+," | grep -c true`
+    return  ${result}
+}
+
+SetOnline() {
+    hub=${1}
+    hub_password=${2}
+    link=${3}
+    resp=`curl --insecure -s -H "X-VPNADMIN-HUBNAME:${hub}" -H "X-VPNADMIN-PASSWORD:${hub_password}" "https://${server}:${port}/api/SetLinkOnline?HubName_str=${hub}&AccountName_utf=${link}"`
+}
+
+SetOffline() {
+    hub=${1}
+    hub_password=${2}
+    link=${3}
+    resp=`curl --insecure -s -H "X-VPNADMIN-HUBNAME:${hub}" -H "X-VPNADMIN-PASSWORD:${hub_password}" "https://${server}:${port}/api/SetLinkOffline?HubName_str=${hub}&AccountName_utf=${link}"`
+}
+
+AveragePing ${domain1} ${pingTimes} ping1
+AveragePing ${domain2} ${pingTimes} ping2
+logger -t ${loggerTag} -s "Average Ping for Host [${domain1}|${domain2}] is [${ping1}/${ping2}]ms."
+
+if awk 'BEGIN{exit ARGV[1]>ARGV[2]}' "${ping1}" "${ping2}"
+then
+  GetOnline ${hub1} ${password} ${link1}
+  if [ $? == 0 ]; then
+    logger -t ${loggerTag} -s "${domain1} is faster than ${domain2}, set ${hub1}:${link1} online."
+    SetOnline ${hub1} ${password} ${link1}
+  fi
+  GetOnline ${hub2} ${password} ${link2}
+  if [ ! $? == 0 ]; then
+    sleep 1
+    logger -t ${loggerTag} -s "${domain1} is faster than ${domain2}, set ${hub2}:${link2} offline."
+    SetOffline ${hub2} ${password} ${link2}
+  fi
+else
+  GetOnline ${hub2} ${password} ${link2}
+  if [ $? == 0 ]; then
+    logger -t ${loggerTag} -s "${domain2} is faster than ${domain1}, set ${hub2}:${link2} online."
+    SetOnline ${hub2} ${password} ${link2}
+  fi
+  GetOnline ${hub1} ${password} ${link1}
+  if [ ! $? == 0 ]; then
+    sleep 1
+    logger -t ${loggerTag} -s "${domain2} is faster than ${domain1}, set ${hub1}:${link1} offline."
+    SetOffline ${hub1} ${password} ${link1}
+  fi
+fi
+
+
