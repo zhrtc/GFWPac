@@ -13,6 +13,9 @@ dns_server="http://119.29.29.29/d?dn="
 default_interface=ppp0
 
 hk_gateway=172.30.3.1
+
+frp_server=172.30.3.5
+
 my_domains="hk.geoe.cn hk2.geoe.cn hkt.geoe.cn hkt2.geoe.cn gzt2.geoe.cn"
 non_china_ips=/jffs/userscripts/non_china_ips
 
@@ -114,8 +117,26 @@ rm /tmp/non_china_ips_routes
 
 logger -t $tag -s "FINFISHED: Add all non_china_ips route to the Gateway $hk_gateway"
 
-logger -t $tag -s "Add 10.0.0.0 route to $hk_gateway"
-ip route add 10.0.0.0/8 via $hk_gateway
+#logger -t $tag -s "Add 10.0.0.0 route to $hk_gateway"
+#ip route add 10.0.0.0/8 via $hk_gateway
+
+#Remote Desktop to Company Computer
+logger -t $tag -s "Reroute WSP RDP to frp_server ($frp_server)"
+iptables -t nat -D PREROUTING -p tcp -d 10.35.32.92 --dport 3389 -j DNAT --to-destination $frp_server:6389
+iptables -t nat -I PREROUTING -p tcp -d 10.35.32.92 --dport 3389 -j DNAT --to-destination $frp_server:6389
+
+#SMB to Company Computer
+logger -t $tag -s "Reroute WSP Samba to frp_server ($frp_server)"
+iptables -t nat -D PREROUTING -p tcp -d 10.35.32.92 --dport 445 -j DNAT --to-destination $frp_server:6445
+iptables -t nat -I PREROUTING -p tcp -d 10.35.32.92 --dport 445 -j DNAT --to-destination $frp_server:6445
+iptables -t nat -D PREROUTING -p tcp -d 10.35.50.46 --dport 445 -j DNAT --to-destination $frp_server:6446
+iptables -t nat -I PREROUTING -p tcp -d 10.35.50.46 --dport 445 -j DNAT --to-destination $frp_server:6446
+iptables -t nat -D PREROUTING -p tcp -d 10.35.50.86 --dport 445 -j DNAT --to-destination $frp_server:6447
+iptables -t nat -I PREROUTING -p tcp -d 10.35.50.86 --dport 445 -j DNAT --to-destination $frp_server:6447
+
+iptables -t nat -D POSTROUTING -p tcp -d $frp_server -m multiport --dport 6000:6999 -j MASQUERADE
+iptables -t nat -I POSTROUTING -p tcp -d $frp_server -m multiport --dport 6000:6999 -j MASQUERADE
+
 
 echo `date`
 

@@ -1,0 +1,39 @@
+#!/bin/sh
+# Written By Rui
+# Referred to https://github.com/necross2/asuswrt-merlin/blob/master/LinkAgg
+# Dynamic Link Aggregation Setup
+# Version 1.0
+
+#Set all needed bonding parameters
+Create_Bond()
+{
+	# Insert bonding module and set parameters (802.3ad, 100ms MII link monitoring)
+	modprobe bonding
+	# 802.3ad mode
+	echo 802.3ad > /sys/class/net/${1}/bonding/mode
+	# LACPDUs every 1 sec
+	echo fast > /sys/class/net/${1}/bonding/lacp_rate
+	# Bring up bond
+	ip link set ${1} up
+	# 100msec MII link monitoring
+	echo 100 > /sys/class/net/${1}/bonding/miimon
+	# enslave vlans to bond
+	ip link set ${2} down
+	ip link set ${3} down
+	echo +${2} > /sys/class/net/${1}/bonding/slaves
+	echo +${3} > /sys/class/net/${1}/bonding/slaves
+	ip link set ${2} up
+	ip link set ${3} up
+	# Bridge the bond allowing AP access
+	# brctl addif br0 ${1}
+	# We allow these VLANs to access the AP
+	#iptables -I INPUT 1 -i ${2} -j ACCEPT
+	#iptables -I INPUT 1 -i ${3} -j ACCEPT
+	#iptables -I INPUT 1 -i ${1} -j ACCEPT
+	#Check Bond Status
+	#sleep 10
+	#Check_Bond_Status BondCreated
+	echo -e "\nBond Created Successfully\n"
+}
+
+Create_Bond $1 $2 $3

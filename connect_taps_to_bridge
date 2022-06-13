@@ -27,13 +27,25 @@ then
     exit 1
 fi
 
-for tap in $taps
-do
-    res=`brctl addif $bridge $tap 2>&1`
-    if [ -z "$res" ]
-    then
-        logger -t $tag -s "Interface [$tap] Added to [$bridge]"
-    else
-        logger -t $tag -s "$res"
-    fi
-done
+#for tap in $taps
+#do
+#    res=`brctl addif $bridge $tap 2>&1`
+#    if [ -z "$res" ]
+#    then
+#        logger -t $tag -s "Interface [$tap] Added to [$bridge]"
+#    else
+#        logger -t $tag -s "$res"
+#    fi
+#done
+
+#brctl setportprio br0 tap_br0_vpn 1
+
+#brctl delif br0 tap_br0_hkt
+#brctl delif br0 tap_br0_hk1901
+
+/jffs/userscripts/linkagg bond0 tap_br0_hkt tap_br0_hk1901
+brctl addif br0 bond0
+#brctl setportprio br0 bond0 1000
+
+#brctl setportprio br0 tap_br0_hkt 1
+#brctl setportprio br0 tap_br0_hk1901 100
