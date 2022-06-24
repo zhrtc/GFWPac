@@ -1,0 +1,94 @@
+#!/bin/sh
+
+tag="IPTV_VLAN_CONNECT"
+
+logger -t $tag -s "Start with PID ${$}."
+lockfile="${tag}.lockfile"
+
+# Exit if /tmp/.lockfile exists
+[ -f /tmp/${lockfile} ] && exit
+
+# Create lock file, sleep 1 sec and verify lock
+echo $$ > /tmp/${lockfile}
+sleep 1
+[ "x$(cat /tmp/${lockfile})" == "x"$$ ] || exit
+
+iptvBrName="br_iptv"
+oriBrName="br0"
+wiredIfs="eth1 eth2"
+vpnIfs="tap_iptv"
+
+
+for wiredIf in ${wiredIfs}
+do
+    isIfExist=`brctl show ${oriBrName} | grep -c ${wiredIf}`
+    if [ ${isIfExist} -ge 1 ]; then
+        logger -t $tag -s "Remove Interface $wiredIf from Bridge ${oriBrName}"
+        brctl delif ${oriBrName} ${wiredIf}
+    fi
+done
+
+isBrExist=`brctl show ${iptvBrName} 2>&1 | grep -c "No such device"`
+if [ ${isBrExist} -ge 1 ]; then
+    logger -t $tag -s "Create New Bridge ${iptvBrName}"
+    brctl addbr ${iptvBrName}
+fi
+
+ifIndex=0
+configInterface() {
+    wiredIf=$1
+    resetMAC=$2
+    logger -t $tag -s "Configuring Interface $wiredIf"
+    
+    if [ ! "$resetMAC" == "no" ]; then
+        ifIndex=`expr ${ifIndex} + 1`
+        newMacAddr="04:D9:F5:FB:2F:F${ifIndex}"
+        logger -t $tag -s "Reset MACADDR for Interface $wiredIf to ${newMacAddr}"
+        ip link set ${wiredIf} down
+        ip link set ${wiredIf} addr ${newMacAddr}
+    fi
+    logger -t $tag -s "Enable & Add Interface $wiredIf to Bridge ${iptvBrName}"
+    
+    ip link set ${wiredIf} up
+
+    vlanctl --mcast --if-create ${wiredIf} 0
+    vlanctl --if ${wiredIf} --rx --tags 0 --set-rxif ${wiredIf}.v0 --rule-append
+    vlanctl --if ${wiredIf} --rx --tags 1 --set-rxif ${wiredIf}.v0 --rule-append
+    ip link set ${wiredIf}.v0 up 
+    brctl addif ${iptvBrName} ${wiredIf}.v0 
+}
+
+configVlan() {
+    wiredIf=$1
+    logger -t $tag -s "Enable & Add Interface Vlan $wiredIf to Bridge ${iptvBrName}"
+    ip link set ${wiredIf} up
+    brctl addif ${iptvBrName} ${wiredIf}
+}
+
+for wiredIf in $wiredIfs
+do
+    logger -t $tag -s "Check Interface $wiredIf"
+    isIfExist=`brctl show ${iptvBrName} | grep -c ${wiredIf}`
+    if [ ${isIfExist} == 0 ]; then
+        configInterface $wiredIf
+    fi
+done
+
+for wiredIf in $vpnIfs
+do
+    logger -t $tag -s "Check Interface $wiredIf"
+    isIfExist=`brctl show ${iptvBrName} | grep -c ${wiredIf}`
+    if [ ${isIfExist} == 0 ]; then
+        configVlan $wiredIf
+    fi
+done
+
+logger -t $tag -s "Enable Bridge ${iptvBrName}"
+ip link set ${iptvBrName} up
+brctl stp ${iptvBrName} on
+
+#bcmmcastctl mode -i ${iptvBrName} -p 1 -m 1
+#bcmmcastctl mode -i ${iptvBrName} -p 2 -m 1
+logger -t $tag -s "Setting Up Completed. Remove Lock File."
+
+rm /tmp/${lockfile}

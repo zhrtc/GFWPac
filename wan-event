@@ -1,0 +1,22 @@
+#!/bin/sh
+
+PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export GCONV_PATH=/opt/lib/gconv
+
+wanNum=$1
+event=$2
+
+logger "Wan Event: ${event}."
+
+case ${event} in
+	connected)
+	logger "Wan Event: ${event}: Add routes."
+    /jffs/userscripts/direct_routes
+	;;
+	disconnected)
+	logger "Wan Event: ${event}: remove routes."
+    /jffs/userscripts/remove_direct_routes
+	;;
+	*)
+	;;
+esac

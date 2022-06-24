@@ -1,5 +1,8 @@
 #!/bin/sh
 
+tag="DirectRoutes"
+
+logger -t $tag -s "Start with PID ${$}."
 # Exit if /tmp/addroute.lockfile exists
 [ -f /tmp/china_ips_route.lockfile ] && exit
 
@@ -16,10 +19,8 @@ hk_gateway=172.30.3.1
 
 frp_server=172.30.3.5
 
-my_domains="hk.geoe.cn hk2.geoe.cn hkt.geoe.cn hkt2.geoe.cn gzt2.geoe.cn"
+my_domains="hk.geoe.cn hk2.geoe.cn hkt.geoe.cn hkt2.geoe.cn gzt.geoe.cn gzt2.geoe.cn bjt.geoe.cn jp.geoe.cn jp2.geoe.cn"
 non_china_ips=/jffs/userscripts/non_china_ips
-
-tag="DirectRoutes"
 
 echo `date`
 
@@ -134,10 +135,19 @@ iptables -t nat -I PREROUTING -p tcp -d 10.35.50.46 --dport 445 -j DNAT --to-des
 iptables -t nat -D PREROUTING -p tcp -d 10.35.50.86 --dport 445 -j DNAT --to-destination $frp_server:6447
 iptables -t nat -I PREROUTING -p tcp -d 10.35.50.86 --dport 445 -j DNAT --to-destination $frp_server:6447
 
+#Parsec to Company Computer
+iptables -t nat -D PREROUTING -p tcp -d 10.35.32.92 -m multiport --dport 6550:6555 -j DNAT --to-destination $frp_server
+iptables -t nat -I PREROUTING -p tcp -d 10.35.32.92 -m multiport --dport 6550:6555 -j DNAT --to-destination $frp_server
+iptables -t nat -D PREROUTING -p udp -d 10.35.32.92 -m multiport --dport 6550:6555 -j DNAT --to-destination $frp_server
+iptables -t nat -I PREROUTING -p udp -d 10.35.32.92 -m multiport --dport 6550:6555 -j DNAT --to-destination $frp_server
+
+#MASQUERADE frp_server
 iptables -t nat -D POSTROUTING -p tcp -d $frp_server -m multiport --dport 6000:6999 -j MASQUERADE
 iptables -t nat -I POSTROUTING -p tcp -d $frp_server -m multiport --dport 6000:6999 -j MASQUERADE
 
+mv "/jffs/configs/dnsmasq.conf.add.bak" "/jffs/configs/dnsmasq.conf.add"
+service restart_dnsmasq
 
-echo `date`
+logger -t $tag -s "Setting Up Completed. Remove Lock File."
 
 rm /tmp/china_ips_route.lockfile
